@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard - Attendance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/app.css">
+    
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen flex flex-col">
+    
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white shadow-md z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <h1 class="text-xl font-bold tracking-wide">Employee Portal</h1>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <div class="hidden sm:flex items-center space-x-2">
+                        <div id="navInitials" class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold border border-blue-400">--</div>
+                        <span id="welcomeName" class="font-medium text-sm">Hello, ...</span>
+                    </div>
+                    <a href="index.html" class="flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 border border-blue-600 rounded-lg text-sm font-medium transition-colors shadow-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            
+            <!-- Left Column: Mark Attendance -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Profile Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col items-center relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+                    
+                <div class="w-24 h-24 bg-white p-1 rounded-full relative z-10 mt-6 mb-3 shadow-md">
+                        <img id="profileImg" src="https://ui-avatars.com/api/?name=Employee&background=e2e8f0&color=475569&size=100" alt="Profile" class="w-full h-full rounded-full object-cover">
+                    </div>
+                    
+                    <h2 id="empName" class="text-xl font-bold text-slate-800">Loading...</h2>
+                    <p id="empDesignation" class="text-slate-500 text-sm mb-1"></p>
+                    <p class="text-slate-400 text-sm mb-6 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                        <span id="empPhone">--</span>
+                    </p>
+
+                    <div class="w-full bg-slate-50 p-4 rounded-lg border border-slate-100 flex flex-col items-center justify-center">
+                        <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">Today's Status</p>
+                        <p id="todayStatus" class="text-lg font-bold text-slate-700">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- GPS & Action Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                    <h3 class="font-semibold text-slate-800 mb-4 border-b pb-2">Location & Attendance</h3>
+                    
+                    <!-- Location Info Mockup -->
+                    <div class="w-full mb-6">
+                        <div class="flex items-start text-sm text-slate-700 mb-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <svg class="w-5 h-5 mr-2 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <div>
+                                <span class="block font-semibold text-blue-800">Current Location:</span>
+                                <span id="locationText" class="text-blue-600">Not detected yet — click the button below.</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Map Placeholder -->
+                        <div id="mapContainer" class="w-full h-40 bg-slate-200 rounded-lg flex flex-col items-center justify-center border border-slate-300 relative overflow-hidden z-0">
+                            <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg, #cbd5e1 25%, transparent 25%, transparent 75%, #cbd5e1 75%, #cbd5e1), repeating-linear-gradient(45deg, #cbd5e1 25%, #f1f5f9 25%, #f1f5f9 75%, #cbd5e1 75%, #cbd5e1); background-position: 0 0, 10px 10px; background-size: 20px 20px;"></div>
+                            <svg class="w-8 h-8 text-slate-400 relative z-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                            <span class="text-slate-500 text-sm font-medium relative z-10">Live Map View (Placeholder)</span>
+                        </div>
+                    </div>
+
+                    <button id="attendanceBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-lg shadow-md transition-all flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span id="attendanceBtnLabel">Mark Attendance (Check In)</span>
+                    </button>
+                    <p class="text-center text-xs text-slate-400 mt-3">Requires GPS to be enabled on your device.</p>
+                </div>
+            </div>
+
+            <!-- Right Column: Attendance History -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden h-full">
+                    <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                        <h3 class="text-lg font-semibold text-slate-800">My Attendance History</h3>
+                        <select class="bg-slate-50 border border-slate-300 text-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium cursor-pointer">
+                            <option>This Week</option>
+                            <option>Last Week</option>
+                            <option>This Month</option>
+                        </select>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                                    <th class="px-6 py-4 border-b border-slate-200">Date</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Time In</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Time Out</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Location</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody" class="text-slate-700 text-sm divide-y divide-slate-100">
+                                <tr><td colspan="5" class="px-6 py-4 text-center text-slate-400">Loading attendance history...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/employee.js"></script>
+</body>
+</html>

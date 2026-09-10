@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Attendance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="bg-slate-50 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 text-white flex flex-col transition-all">
+            <div class="p-5 flex items-center border-b border-slate-700">
+                <svg class="w-8 h-8 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                <h1 class="text-xl font-bold tracking-wide">Admin Portal</h1>
+            </div>
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <a href="#" id="navDashboard" onclick="switchAdminView('dashboard')" class="flex items-center px-4 py-3 bg-blue-600 rounded-lg text-sm font-medium text-white shadow-sm">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="add_employee.html" id="navEmployees" class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg text-sm font-medium transition-colors">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Manage Employees
+                </a>
+                <a href="attendance_report.html" id="navAttendance" class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg text-sm font-medium transition-colors">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Attendance Records
+                </a>
+                <a href="monthly_report.html" id="navMonthly" class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg text-sm font-medium transition-colors">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Monthly Reports
+                </a>
+            </nav>
+            <div class="p-4 border-t border-slate-700">
+                <a href="index.html" class="flex items-center justify-center w-full px-4 py-2 text-sm text-red-400 hover:text-white hover:bg-red-600 rounded-lg transition-colors font-medium">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col h-screen overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center z-10">
+                <div class="flex items-center space-x-4">
+                    <h2 class="text-2xl font-semibold text-slate-800">Dashboard Overview</h2>
+                    <a href="add_employee.html" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center shadow-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Add Employee
+                    </a>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="text-right hidden md:block">
+                        <p class="text-sm font-medium text-slate-700">Admin User</p>
+                        <p class="text-xs text-slate-500">Administrator</p>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg border border-blue-200">
+                        A
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-50">
+                
+                <div id="dashboardView">
+<!-- Quick Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow">
+                        <div>
+                            <h3 class="text-slate-500 text-sm font-medium mb-1">Total Employees</h3>
+                            <p class="text-3xl font-bold text-slate-800">42</p>
+                        </div>
+                        <div class="p-3 bg-blue-50 rounded-lg text-blue-600">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow">
+                        <div>
+                            <h3 class="text-slate-500 text-sm font-medium mb-1">Present Today</h3>
+                            <p class="text-3xl font-bold text-slate-800">38</p>
+                        </div>
+                        <div class="p-3 bg-emerald-50 rounded-lg text-emerald-600">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-shadow">
+                        <div>
+                            <h3 class="text-slate-500 text-sm font-medium mb-1">Absent Today</h3>
+                            <p class="text-3xl font-bold text-slate-800">4</p>
+                        </div>
+                        <div class="p-3 bg-red-50 rounded-lg text-red-600">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inschool Program Summary -->
+                <h3 class="text-slate-700 font-bold mb-3 text-lg mt-2">Inschool Program Summary</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <h3 class="text-slate-500 text-xs font-medium mb-1 uppercase tracking-wider">Total Inschool</h3>
+                        <p class="text-2xl font-bold text-blue-600">24</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <h3 class="text-slate-500 text-xs font-medium mb-1 uppercase tracking-wider">Present Inschool</h3>
+                        <p class="text-2xl font-bold text-emerald-600">20</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <h3 class="text-slate-500 text-xs font-medium mb-1 uppercase tracking-wider">Absent Inschool</h3>
+                        <p class="text-2xl font-bold text-red-600">2</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                        <h3 class="text-slate-500 text-xs font-medium mb-1 uppercase tracking-wider">On-duty Inschool</h3>
+                        <p class="text-2xl font-bold text-amber-500">2</p>
+                    </div>
+                </div>
+
+                <!-- Recent Attendance Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white gap-4">
+                        <h3 class="text-lg font-semibold text-slate-800">Today's Live Attendance</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <select class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 bg-white">
+                                <option value="">All Departments</option>
+                                <option value="inschool">Inschool</option>
+                                <option value="dlss">DlSS</option>
+                                <option value="payplay">Pay & Play</option>
+                                <option value="kheloindia">Khelo-India</option>
+                                <option value="academy">Academy</option>
+                            </select>
+                            <input type="date" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600">
+                            <button class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-slate-200">Export</button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                                    <th class="px-6 py-4 border-b border-slate-200">Employee Name</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Phone Number</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Time In</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Location (GPS)</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Status</th>
+                                    <th class="px-6 py-4 border-b border-slate-200 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-slate-700 text-sm divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-800 flex items-center">
+                                        <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3 text-xs flex-shrink-0">JD</div>
+                                        <div>
+                                            <span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 mr-1 uppercase">Inschool</span>
+                                            John Doe
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-slate-500">+1 234 567 8900</td>
+                                    <td class="px-6 py-4 font-medium">08:55 AM</td>
+                                    <td class="px-6 py-4">
+                                        <button class="flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                            View Map
+                                        </button>
+                                    </td>
+                                    <td class="px-6 py-4"><span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 font-semibold text-xs rounded-full border border-emerald-200">Present</span></td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button class="text-slate-400 hover:text-blue-600 transition-colors font-medium text-sm">Details</button>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-800 flex items-center">
+                                        <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold mr-3 text-xs flex-shrink-0">JS</div>
+                                        <div>
+                                            <span class="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 mr-1 uppercase">DlSS</span>
+                                            Jane Smith
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-slate-500">+1 987 654 3210</td>
+                                    <td class="px-6 py-4 font-medium">09:15 AM</td>
+                                    <td class="px-6 py-4">
+                                        <button class="flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                            View Map
+                                        </button>
+                                    </td>
+                                    <td class="px-6 py-4"><span class="px-2.5 py-1 bg-amber-100 text-amber-700 font-semibold text-xs rounded-full border border-amber-200">Late</span></td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button class="text-slate-400 hover:text-blue-600 transition-colors font-medium text-sm">Details</button>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-slate-50 transition-colors bg-slate-50/50">
+                                    <td class="px-6 py-4 font-medium text-slate-800 flex items-center">
+                                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold mr-3 text-xs flex-shrink-0">MJ</div>
+                                        <div>
+                                            <span class="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200 mr-1 uppercase">Pay & Play</span>
+                                            Mike Johnson
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 text-slate-500">+1 555 123 4567</td>
+                                    <td class="px-6 py-4 text-slate-400 font-medium">--:--</td>
+                                    <td class="px-6 py-4 text-slate-400">
+                                        Not available
+                                    </td>
+                                    <td class="px-6 py-4"><span class="px-2.5 py-1 bg-red-100 text-red-700 font-semibold text-xs rounded-full border border-red-200">Absent</span></td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button class="text-slate-400 hover:text-blue-600 transition-colors font-medium text-sm">Details</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <span class="text-sm text-slate-500">Showing 1 to 3 of 42 employees</span>
+                        <div class="flex space-x-1">
+                            <button class="px-3 py-1 border border-slate-300 rounded text-sm text-slate-500 disabled:opacity-50" disabled>Prev</button>
+                            <button class="px-3 py-1 bg-blue-600 text-white rounded text-sm">1</button>
+                            <button class="px-3 py-1 border border-slate-300 hover:bg-slate-100 rounded text-sm text-slate-600">2</button>
+                            <button class="px-3 py-1 border border-slate-300 hover:bg-slate-100 rounded text-sm text-slate-600">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                </div>
+<div id="monthlyReportsView" class="hidden">
+<!-- Monthly Attendance Summary Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mt-8">
+                    <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                        <h3 class="text-lg font-semibold text-slate-800">Monthly Attendance Overview</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <select class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 bg-white">
+                                <option value="">All Departments</option>
+                                <option value="inschool">Inschool</option>
+                                <option value="dlss">DlSS</option>
+                                <option value="payplay">Pay & Play</option>
+                                <option value="kheloindia">Khelo-India</option>
+                                <option value="academy">Academy</option>
+                            </select>
+                            <select class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 cursor-pointer bg-white">
+                                <option>September 2026</option>
+                                <option>August 2026</option>
+                                <option>July 2026</option>
+                            </select>
+                            <button class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-slate-200">Export CSV</button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                                    <th class="px-6 py-4 border-b border-slate-200">Employee Name</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Total Working Days</th>
+                                    <th class="px-6 py-4 border-b border-slate-200 text-center">Days Present</th>
+                                    <th class="px-6 py-4 border-b border-slate-200 text-center">Days Absent</th>
+                                    <th class="px-6 py-4 border-b border-slate-200 text-center">Late Arrivals</th>
+                                    <th class="px-6 py-4 border-b border-slate-200 text-right">Attendance %</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-slate-700 text-sm divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-800 flex items-center">
+                                        <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3 text-xs flex-shrink-0">JD</div>
+                                        <div>
+                                            <span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 mr-1 uppercase">Inschool</span>
+                                            John Doe
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">22</td>
+                                    <td class="px-6 py-4 text-center text-emerald-600 font-bold">21</td>
+                                    <td class="px-6 py-4 text-center text-red-500">1</td>
+                                    <td class="px-6 py-4 text-center text-amber-500">2</td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            95.4%
+                                        </span>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-800 flex items-center">
+                                        <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold mr-3 text-xs flex-shrink-0">JS</div>
+                                        <div>
+                                            <span class="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 mr-1 uppercase">DlSS</span>
+                                            Jane Smith
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">22</td>
+                                    <td class="px-6 py-4 text-center text-emerald-600 font-bold">18</td>
+                                    <td class="px-6 py-4 text-center text-red-500">4</td>
+                                    <td class="px-6 py-4 text-center text-amber-500">5</td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                            81.8%
+                                        </span>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="px-6 py-4 font-medium text-slate-800 flex items-center">
+                                        <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold mr-3 text-xs flex-shrink-0">MJ</div>
+                                        <div>
+                                            <span class="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded border border-orange-200 mr-1 uppercase">Pay & Play</span>
+                                            Mike Johnson
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">22</td>
+                                    <td class="px-6 py-4 text-center text-emerald-600 font-bold">22</td>
+                                    <td class="px-6 py-4 text-center text-slate-400">0</td>
+                                    <td class="px-6 py-4 text-center text-slate-400">0</td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                            100%
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+    </div>
+    <div id="editAttendanceModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800">Edit Attendance</h3>
+                <button type="button" onclick="closeEditAttendance()" class="text-slate-400 hover:text-slate-600" aria-label="Close edit attendance dialog">&times;</button>
+            </div>
+            <form id="editAttendanceForm" class="p-6 space-y-4">
+                <p id="editAttendanceEmployee" class="text-sm font-semibold text-slate-700"></p>
+                <div>
+                    <label for="editAttendanceStatus" class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                    <select id="editAttendanceStatus" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                        <option value="Present">Present</option>
+                        <option value="Late">Late</option>
+                        <option value="Absent">Absent</option>
+                        <option value="On-Duty">On-Duty</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="editAttendanceTime" class="block text-sm font-medium text-slate-700 mb-1">Time In</label>
+                    <input id="editAttendanceTime" type="time" class="w-full border border-slate-300 rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label for="editAttendanceLocation" class="block text-sm font-medium text-slate-700 mb-1">Location</label>
+                    <input id="editAttendanceLocation" type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Enter location">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeEditAttendance()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<!-- Employee Details Modal (Hidden by default) -->
+    <div id="employeeModal" class="fixed inset-0 bg-slate-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-bold text-slate-800" id="modalEmpName">Employee Details</h3>
+                <button onclick="document.getElementById('employeeModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <div id="modalInitials" class="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center text-xl font-bold text-blue-700 mr-4"></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Department</p>
+                        <p id="modalDept" class="text-slate-800 font-bold mb-1"></p>
+                        <p class="text-sm text-slate-500 font-medium">Phone Number</p>
+                        <p id="modalPhone" class="text-slate-800 font-bold"></p>
+                    </div>
+                </div>
+                
+                <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2 mb-4">Today's Activity</h4>
+                <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-slate-600 font-medium">Status:</span>
+                        <span id="modalStatus"></span>
+                    </div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-slate-600 font-medium">Time In:</span>
+                        <span id="modalTimeIn" class="text-slate-800 font-bold"></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-600 font-medium flex-shrink-0 mr-4">Location:</span>
+                        <span id="modalLocation" class="text-slate-800 text-sm text-right"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+                <button onclick="document.getElementById('employeeModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded-lg font-medium transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

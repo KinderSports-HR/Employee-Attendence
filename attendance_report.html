@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Records - Attendance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-slate-900 text-white flex flex-col">
+            <div class="p-5 flex items-center border-b border-slate-700">
+                <svg class="w-8 h-8 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011 1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                <h1 class="text-xl font-bold tracking-wide">Admin Portal</h1>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="admin.html" class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 rounded-lg text-sm font-medium">Dashboard</a>
+                <a href="add_employee.html" class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 rounded-lg text-sm font-medium">Manage Employees</a>
+                <a href="attendance_report.html" class="flex items-center px-4 py-3 bg-blue-600 rounded-lg text-sm font-medium">Attendance Records</a>
+                <a href="monthly_report.html" class="flex items-center px-4 py-3 text-slate-300 hover:bg-slate-800 rounded-lg text-sm font-medium">Monthly Reports</a>
+            </nav>
+            <div class="p-4 border-t border-slate-700">
+                <a href="index.html" class="block text-center px-4 py-2 text-sm text-red-400 hover:text-white hover:bg-red-600 rounded-lg font-medium">Logout</a>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-8 overflow-auto">
+            <div class="flex flex-col gap-2 mb-8">
+                <p class="text-sm font-medium text-blue-600 uppercase tracking-wider">Daily Records</p>
+                <h2 class="text-3xl font-semibold">Attendance Records</h2>
+                <p class="text-slate-500">Employee check-in activity and attendance status</p>
+            </div>
+
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                    <p class="text-sm text-slate-500">Total Records</p>
+                    <p id="recordCount" class="text-3xl font-bold mt-2">--</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                    <p class="text-sm text-slate-500">Present</p>
+                    <p id="presentCount" class="text-3xl font-bold mt-2 text-emerald-600">--</p>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                    <p class="text-sm text-slate-500">Late Arrivals</p>
+                    <p id="lateCount" class="text-3xl font-bold mt-2 text-amber-500">--</p>
+                </div>
+            </section>
+
+            <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between gap-4">
+                    <h3 class="text-lg font-semibold">Recent Attendance Activity</h3>
+                    <button id="downloadAttendance" type="button" disabled class="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Download CSV</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4">Employee Name</th>
+                                <th class="px-6 py-4">Date</th>
+                                <th class="px-6 py-4">Time In</th>
+                                <th class="px-6 py-4">Status</th>
+                                <th class="px-6 py-4">Location</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTable" class="divide-y divide-slate-100 text-sm">
+                            <tr><td colspan="5" class="px-6 py-10 text-center text-slate-500">Loading attendance records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/report-export.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const table = document.getElementById('recordsTable');
+            const downloadButton = document.getElementById('downloadAttendance');
+            let exportRows = [];
+
+            downloadButton.addEventListener('click', () => {
+                downloadCsv(`attendance-records-${new Date().toISOString().slice(0, 10)}.csv`, ['Employee Name', 'Date', 'Time In', 'Status', 'Location'], exportRows);
+            });
+
+            try {
+                const [{ data: employees, error: employeeError }, { data: attendance, error: attendanceError }] = await Promise.all([
+                    supabaseClient.from('employees').select('*'),
+                    supabaseClient.from('attendance').select('*')
+                ]);
+                if (employeeError) throw employeeError;
+                if (attendanceError) throw attendanceError;
+
+                const employeeNames = new Map(employees.map(employee => [employee.id, employee.full_name || 'Unnamed Employee']));
+                const records = [...attendance].sort((first, second) => `${second.date || ''}${second.time_in || ''}`.localeCompare(`${first.date || ''}${first.time_in || ''}`));
+                exportRows = records.map(record => [
+                    employeeNames.get(record.employee_id) || 'Unknown Employee',
+                    record.date || '',
+                    record.time_in || '',
+                    record.status || 'Absent',
+                    record.location_address || 'Not available'
+                ]);
+                downloadButton.disabled = exportRows.length === 0;
+                document.getElementById('recordCount').textContent = records.length;
+                document.getElementById('presentCount').textContent = records.filter(record => record.status === 'Present').length;
+                document.getElementById('lateCount').textContent = records.filter(record => record.status === 'Late').length;
+                table.innerHTML = '';
+
+                if (!records.length) {
+                    table.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-slate-500">No attendance records found.</td></tr>';
+                    return;
+                }
+
+                records.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-50';
+                    const statusClass = record.status === 'Late' ? 'text-amber-600' : record.status === 'Present' ? 'text-emerald-600' : 'text-red-500';
+                    row.innerHTML = `<td class="px-6 py-4 font-medium">${employeeNames.get(record.employee_id) || 'Unknown Employee'}</td><td class="px-6 py-4 text-slate-500">${record.date || '-'}</td><td class="px-6 py-4">${record.time_in || '--:--'}</td><td class="px-6 py-4 font-semibold ${statusClass}">${record.status || 'Absent'}</td><td class="px-6 py-4 text-slate-500">${record.location_address || 'Not available'}</td>`;
+                    table.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Attendance records error:', error);
+                showNotification('Unable to load attendance records.', 'error');
+                table.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Unable to load attendance records. Please try again.</td></tr>';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+/* Shared readable typography across the application. */
+html {
+    font-size: 16px;
+}
+
+body {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.text-xs {
+    font-size: 0.8125rem !important;
+}
+
+.text-sm {
+    font-size: 0.9375rem !important;
+}
+
+button,
+input,
+select,
+textarea {
+    font-size: 0.9375rem;
+}
