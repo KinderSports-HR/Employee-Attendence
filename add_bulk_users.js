@@ -9,6 +9,11 @@ const SUPABASE_URL = urlMatch[1];
 const SUPABASE_ANON_KEY = keyMatch[1];
 
 let users = [
+    { full_name: "Kanaiyabhai Bhil", phone: "8141356881", role: "employee", department: "Morbi" },
+    { full_name: "Makwana Aartiben Batukbhai", phone: "6359584768", role: "employee", department: "Bhavnagar" },
+    { full_name: "Nasim Majgul", phone: "9601058195", role: "employee", department: "Ahmedabad" },
+    { full_name: "Paritosh Bhatti", phone: "7984044850", role: "employee" },
+    { full_name: "JIGAR KHARVARA", phone: "7984752624", role: "employee", department: "Gandhinagar" },
   { full_name: "Yash Jethva", phone: "6354799291", role: "employee" },
   { full_name: "Hansa ben Solanki", phone: "8799627227", role: "employee", department: "dlss", designation: "Kabaddi Trainer" },
   { full_name: "RABARI RANCHHOD BHAI", phone: "7874785195", role: "employee" },

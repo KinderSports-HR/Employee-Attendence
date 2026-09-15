@@ -4,6 +4,11 @@
 INSERT INTO public.employees (full_name, phone, department, designation, role)
 SELECT source.full_name, source.phone, source.department, source.designation, 'employee'
 FROM (VALUES
+    ('Kanaiyabhai Bhil', '8141356881', 'Morbi', NULL),
+    ('Makwana Aartiben Batukbhai', '6359584768', 'Bhavnagar', NULL),
+    ('Nasim Majgul', '9601058195', 'Ahmedabad', NULL),
+    ('Paritosh Bhatti', '7984044850', NULL, NULL),
+    ('JIGAR KHARVARA', '7984752624', 'Gandhinagar', NULL),
     ('Prakash Bhabhor', '9726465426', 'Inschool', 'InSchool Trainer'),
     ('Roshan Shrivatsav', '9537050964', 'Inschool', 'Gymkhana Trainer'),
     ('Ankita Parmar', '9998280372', 'Inschool', 'InSchool Trainer'),
