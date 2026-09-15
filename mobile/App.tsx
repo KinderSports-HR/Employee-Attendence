@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  FlatList,
   Platform,
   Pressable,
   SafeAreaView,
@@ -354,7 +353,7 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
         </View>
         <View style={styles.exportSection}><View><Text style={styles.sectionTitle}>Attendance reports</Text><Text style={styles.mutedText}>Download clean CSV reports for your records.</Text></View><View style={styles.exportButtons}><Pressable style={styles.exportButton} onPress={exportDaily}><Text style={styles.exportButtonText}>Daily CSV</Text></Pressable><Pressable style={[styles.exportButton, styles.monthlyButton]} onPress={exportMonthly}><Text style={styles.exportButtonText}>Monthly CSV</Text></Pressable></View></View>
         <View style={styles.sectionHeading}><View><Text style={styles.sectionTitle}>Employee directory</Text><Text style={styles.sectionMeta}>{employees.length} total</Text></View><Pressable style={styles.addButton} onPress={() => { setEditingEmployee(null); setShowEmployeeForm(true); }}><Text style={styles.addButtonText}>+ Add employee</Text></Pressable></View>
-        <View style={styles.listCard}><FlatList data={employees} scrollEnabled={false} keyExtractor={(item) => item.id} renderItem={({ item }) => <Pressable style={styles.employeeRow} onPress={() => setSelectedEmployee(item)}><View style={styles.avatarSmall}><Text style={styles.avatarSmallText}>{item.full_name.slice(0, 1).toUpperCase()}</Text></View><View style={styles.employeeInfo}><Text style={styles.employeeName}>{item.full_name}</Text><Text style={styles.mutedText}>{item.department || 'Unassigned'}  |  {item.designation || 'Employee'}</Text></View><Text style={styles.rowChevron}>›</Text></Pressable>} /></View>
+        <View style={styles.listCard}>{employees.map((item) => <Pressable key={item.id} style={styles.employeeRow} onPress={() => setSelectedEmployee(item)}><View style={styles.avatarSmall}><Text style={styles.avatarSmallText}>{item.full_name.slice(0, 1).toUpperCase()}</Text></View><View style={styles.employeeInfo}><Text style={styles.employeeName}>{item.full_name}</Text><Text style={styles.mutedText}>{item.department || 'Unassigned'}  |  {item.designation || 'Employee'}</Text></View><Text style={styles.rowChevron}>›</Text></Pressable>)}</View>
       </ScrollView>
       {selectedEmployee && <EmployeeDetails employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} onEdit={() => { setEditingEmployee(selectedEmployee); setSelectedEmployee(null); setShowEmployeeForm(true); }} />}
       {showEmployeeForm && <EmployeeForm employee={editingEmployee} initialStatus={editingEmployee ? attendance.find((record) => record.employee_id === editingEmployee.id && record.date === today)?.status || 'Absent' : 'Absent'} onClose={() => { setShowEmployeeForm(false); setEditingEmployee(null); }} onSave={async (values, status) => { await saveEmployee(values); if (editingEmployee) await saveEmployeeStatus(editingEmployee.id, status); }} />}
