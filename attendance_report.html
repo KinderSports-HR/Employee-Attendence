@@ -57,6 +57,8 @@
                         <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                             <tr>
                                 <th class="px-6 py-4">Employee Name</th>
+                                <th class="px-6 py-4">Department</th>
+                                <th class="px-6 py-4">Designation</th>
                                 <th class="px-6 py-4">Date</th>
                                 <th class="px-6 py-4">Time In</th>
                                 <th class="px-6 py-4">Status</th>
@@ -64,7 +66,7 @@
                             </tr>
                         </thead>
                         <tbody id="recordsTable" class="divide-y divide-slate-100 text-sm">
-                            <tr><td colspan="5" class="px-6 py-10 text-center text-slate-500">Loading attendance records...</td></tr>
+                            <tr><td colspan="7" class="px-6 py-10 text-center text-slate-500">Loading attendance records...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -83,7 +85,7 @@
             let exportRows = [];
 
             downloadButton.addEventListener('click', () => {
-                downloadCsv(`attendance-records-${new Date().toISOString().slice(0, 10)}.csv`, ['Employee Name', 'Date', 'Time In', 'Status', 'Location'], exportRows);
+                downloadCsv(`attendance-records-${new Date().toISOString().slice(0, 10)}.csv`, ['Employee Name', 'Department', 'Designation', 'Date', 'Time In', 'Status', 'Location'], exportRows);
             });
 
             try {
@@ -94,15 +96,20 @@
                 if (employeeError) throw employeeError;
                 if (attendanceError) throw attendanceError;
 
-                const employeeNames = new Map(employees.map(employee => [employee.id, employee.full_name || 'Unnamed Employee']));
+                const employeeMap = new Map(employees.map(employee => [employee.id, employee]));
                 const records = [...attendance].sort((first, second) => `${second.date || ''}${second.time_in || ''}`.localeCompare(`${first.date || ''}${first.time_in || ''}`));
-                exportRows = records.map(record => [
-                    employeeNames.get(record.employee_id) || 'Unknown Employee',
-                    record.date || '',
-                    record.time_in || '',
-                    record.status || 'Absent',
-                    record.location_address || 'Not available'
-                ]);
+                exportRows = records.map(record => {
+                    const employee = employeeMap.get(record.employee_id) || {};
+                    return [
+                        employee.full_name || 'Unknown Employee',
+                        employee.department || '',
+                        employee.designation || '',
+                        record.date || '',
+                        record.time_in || '',
+                        record.status || 'Absent',
+                        record.location_address || 'Not available'
+                    ];
+                });
                 downloadButton.disabled = exportRows.length === 0;
                 document.getElementById('recordCount').textContent = records.length;
                 document.getElementById('presentCount').textContent = records.filter(record => record.status === 'Present').length;
@@ -110,7 +117,7 @@
                 table.innerHTML = '';
 
                 if (!records.length) {
-                    table.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-slate-500">No attendance records found.</td></tr>';
+                    table.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-slate-500">No attendance records found.</td></tr>';
                     return;
                 }
 
@@ -118,13 +125,14 @@
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-slate-50';
                     const statusClass = record.status === 'Late' ? 'text-amber-600' : record.status === 'Present' ? 'text-emerald-600' : 'text-red-500';
-                    row.innerHTML = `<td class="px-6 py-4 font-medium">${employeeNames.get(record.employee_id) || 'Unknown Employee'}</td><td class="px-6 py-4 text-slate-500">${record.date || '-'}</td><td class="px-6 py-4">${record.time_in || '--:--'}</td><td class="px-6 py-4 font-semibold ${statusClass}">${record.status || 'Absent'}</td><td class="px-6 py-4 text-slate-500">${record.location_address || 'Not available'}</td>`;
+                    const employee = employeeMap.get(record.employee_id) || {};
+                    row.innerHTML = `<td class="px-6 py-4 font-medium">${employee.full_name || 'Unknown Employee'}</td><td class="px-6 py-4 text-slate-500">${employee.department || '-'}</td><td class="px-6 py-4 text-slate-500">${employee.designation || '-'}</td><td class="px-6 py-4 text-slate-500">${record.date || '-'}</td><td class="px-6 py-4">${record.time_in || '--:--'}</td><td class="px-6 py-4 font-semibold ${statusClass}">${record.status || 'Absent'}</td><td class="px-6 py-4 text-slate-500">${record.location_address || 'Not available'}</td>`;
                     table.appendChild(row);
                 });
             } catch (error) {
                 console.error('Attendance records error:', error);
                 showNotification('Unable to load attendance records.', 'error');
-                table.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500">Unable to load attendance records. Please try again.</td></tr>';
+                table.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-red-500">Unable to load attendance records. Please try again.</td></tr>';
             }
         });
     </script>

@@ -143,7 +143,9 @@
                         <table class="w-full text-left border-collapse">
                             <thead>
                                 <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
-                                    <th class="px-6 py-4 border-b border-slate-200">Employee Name</th>
+                                                                        <th class="px-6 py-4 border-b border-slate-200">Employee Name</th>
+                                                                        <th class="px-6 py-4 border-b border-slate-200">Department</th>
+                                                                        <th class="px-6 py-4 border-b border-slate-200">Designation</th>
                                     <th class="px-6 py-4 border-b border-slate-200">Phone Number</th>
                                     <th class="px-6 py-4 border-b border-slate-200">Time In</th>
                                     <th class="px-6 py-4 border-b border-slate-200">Location (GPS)</th>
@@ -339,6 +341,10 @@
             <form id="editAttendanceForm" class="p-6 space-y-4">
                 <p id="editAttendanceEmployee" class="text-sm font-semibold text-slate-700"></p>
                 <div>
+                    <label for="editEmployeePhone" class="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
+                    <input id="editEmployeePhone" type="tel" inputmode="numeric" pattern="[0-9+() .-]*" class="w-full border border-slate-300 rounded-lg px-3 py-2" placeholder="Enter phone number">
+                </div>
+                <div>
                     <label for="editAttendanceStatus" class="block text-sm font-medium text-slate-700 mb-1">Status</label>
                     <select id="editAttendanceStatus" class="w-full border border-slate-300 rounded-lg px-3 py-2">
                         <option value="Present">Present</option>
@@ -379,15 +385,21 @@
                         <p id="modalDept" class="text-slate-800 font-bold mb-1"></p>
                         <p class="text-sm text-slate-500 font-medium">Phone Number</p>
                         <p id="modalPhone" class="text-slate-800 font-bold"></p>
+                        <p class="text-sm text-slate-500 font-medium mt-2">Employee Status</p>
+                        <p id="modalEmployeeStatus" class="font-bold"></p>
                     </div>
                 </div>
                 
+                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-6 flex justify-between items-center">
+                    <div>
+                        <p class="text-xs text-blue-600 uppercase tracking-wider font-bold">Today's Attendance Status</p>
+                        <p class="text-sm text-slate-500 mt-1">Present, absent, or late</p>
+                    </div>
+                    <span id="modalStatus" class="text-base"></span>
+                </div>
+
                 <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2 mb-4">Today's Activity</h4>
                 <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-slate-600 font-medium">Status:</span>
-                        <span id="modalStatus"></span>
-                    </div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-slate-600 font-medium">Time In:</span>
                         <span id="modalTimeIn" class="text-slate-800 font-bold"></span>

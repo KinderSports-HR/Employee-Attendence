@@ -3,6 +3,11 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("Employee.js loaded and DOM is ready!");
+    const attendanceBtn = document.getElementById('attendanceBtn');
+    const attendanceBtnLabel = document.getElementById('attendanceBtnLabel');
+    const locationText = document.getElementById('locationText');
+    const mapContainer = document.getElementById('mapContainer');
+    let todayAttendanceRecord = null;
     
     try {
         // 1. Get logged in user from localStorage
@@ -64,9 +69,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Check if today is marked
             const today = new Date().toISOString().split('T')[0];
             const todayRecord = attendanceData.find(r => r.date === today);
+            todayAttendanceRecord = todayRecord || null;
             
             if (todayRecord) {
                 document.getElementById('todayStatus').textContent = todayRecord.status;
+                attendanceBtn.disabled = true;
+                attendanceBtnLabel.textContent = 'Attendance Already Marked';
+                attendanceBtn.classList.replace('bg-emerald-500', 'bg-slate-400');
+                attendanceBtn.classList.replace('hover:bg-emerald-600', 'hover:bg-slate-500');
                 if (todayRecord.status === 'Present') {
                     document.getElementById('todayStatus').className = 'text-lg font-bold text-emerald-600';
                 }
@@ -109,13 +119,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ==========================================
     // 4. Mark Attendance Logic (GPS & Supabase)
     // ==========================================
-    const attendanceBtn = document.getElementById('attendanceBtn');
-    const attendanceBtnLabel = document.getElementById('attendanceBtnLabel');
-    const locationText = document.getElementById('locationText');
-    const mapContainer = document.getElementById('mapContainer');
-
     attendanceBtn.addEventListener('click', () => {
         if (attendanceBtn.disabled) return;
+        if (todayAttendanceRecord) {
+            showNotification('Attendance has already been marked for today.', 'info');
+            return;
+        }
 
         // Visual feedback
         attendanceBtn.disabled = true;
@@ -137,9 +146,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 attendanceBtnLabel.textContent = "Saving Record...";
 
                 // Reverse Geocode (Get Address from Lat/Lon)
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                const geoData = await res.json();
-                const address = geoData.display_name || "Unknown Location";
+                let address = 'Location unavailable';
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`, {
+                        headers: { Accept: 'application/json' }
+                    });
+                    if (res.ok) {
+                        const geoData = await res.json();
+                        address = geoData.display_name || address;
+                    }
+                } catch (geocodeError) {
+                    console.warn('Reverse geocoding failed; saving coordinates instead:', geocodeError);
+                }
 
                 // Determine Status: Present if before 9:30 AM, else Late
                 const now = new Date();
@@ -169,7 +187,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     ]);
 
-                if (error) throw error;
+                if (error) {
+                    console.error('Attendance insert failed:', {
+                        code: error.code,
+                        message: error.message,
+                        details: error.details,
+                        hint: error.hint
+                    });
+                    throw error;
+                }
+
+                todayAttendanceRecord = data?.[0] || { date: dateStr, status };
 
                 // Update UI Location Text
                 locationText.textContent = address;
@@ -194,7 +222,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             } catch (err) {
                 console.error(err);
-                alert("Failed to save attendance record. See console for details.");
+                const message = err?.code === '23505'
+                    ? 'Attendance is already marked for today.'
+                    : err?.code === '42501'
+                        ? 'Attendance could not be saved because database permission is missing.'
+                        : `Attendance could not be saved: ${err?.message || 'unknown error'}`;
+                showNotification(message, 'error');
                 resetButton();
             }
 

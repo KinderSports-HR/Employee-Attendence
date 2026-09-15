@@ -157,6 +157,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 </div>
                             </div>
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">${emp.department || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">${emp.designation || '-'}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-500">${emp.phone}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-800 font-medium">${timeIn}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-500 text-xs">${location}</td>
@@ -181,6 +183,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('modalInitials').textContent = (emp.full_name || 'U').substring(0,2).toUpperCase();
                 document.getElementById('modalDept').textContent = emp.department || 'Not Assigned';
                 document.getElementById('modalPhone').textContent = emp.phone || 'N/A';
+
+                const employeeStatus = document.getElementById('modalEmployeeStatus');
+                const isActive = emp.is_active !== false && String(emp.status || '').toLowerCase() !== 'inactive';
+                employeeStatus.textContent = emp.status || (isActive ? 'Active' : 'Inactive');
+                employeeStatus.className = isActive ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold';
                 
                 if (att) {
                     let statusBadge = '<span class="px-2.5 py-1 bg-red-100 text-red-700 font-semibold text-xs rounded-full">Absent</span>';
@@ -207,6 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 editingEmployeeId = empId;
                 document.getElementById('editAttendanceEmployee').textContent = `${emp.full_name} - ${att ? att.date : todayStr}`;
+                document.getElementById('editEmployeePhone').value = emp.phone || '';
                 document.getElementById('editAttendanceStatus').value = att?.status || 'Absent';
                 document.getElementById('editAttendanceTime').value = att?.time_in ? att.time_in.substring(0, 5) : '';
                 document.getElementById('editAttendanceLocation').value = att?.location_address || '';
@@ -221,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('editAttendanceForm').addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const existingAttendance = todayAttendance.find(a => a.employee_id == editingEmployeeId);
+                const phone = document.getElementById('editEmployeePhone').value.replace(/\D/g, '');
                 const values = {
                     status: document.getElementById('editAttendanceStatus').value,
                     time_in: document.getElementById('editAttendanceTime').value || null,
@@ -228,6 +237,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
 
                 try {
+                    if (!phone || phone.length < 10) {
+                        showNotification('Enter a valid phone number.', 'error');
+                        return;
+                    }
+
+                    const { error: employeeError } = await supabaseClient
+                        .from('employees')
+                        .update({ phone })
+                        .eq('id', editingEmployeeId);
+                    if (employeeError) throw employeeError;
+
                     const query = existingAttendance
                         ? supabaseClient.from('attendance').update(values).eq('id', existingAttendance.id)
                         : supabaseClient.from('attendance').insert({ ...values, employee_id: editingEmployeeId, date: todayStr });
@@ -279,6 +299,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <div class="font-medium text-slate-800 flex items-center">${deptLabel} ${emp.full_name}</div>
                             </div>
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">${emp.department || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">${emp.designation || '-'}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-600 text-center">${totalWorkingDays}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-emerald-600 font-bold text-center">${totalPresent}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-red-500 font-bold text-center">${daysAbsent}</td>
