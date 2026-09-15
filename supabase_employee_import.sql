@@ -23,3 +23,31 @@ WHERE NOT EXISTS (
     FROM public.employees existing
     WHERE regexp_replace(COALESCE(existing.phone, ''), '\D', '', 'g') = source.phone
 );
+
+-- The app uses the Supabase publishable key and its own phone-based login.
+-- Run this once in Supabase SQL Editor if attendance deletion is blocked by RLS.
+DROP POLICY IF EXISTS attendance_delete_policy ON public.attendance;
+CREATE POLICY attendance_delete_policy
+ON public.attendance
+FOR DELETE
+TO public
+USING (true);
+
+CREATE OR REPLACE FUNCTION public.delete_attendance_record(p_attendance_id text, p_employee_id text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+        deleted_count integer;
+BEGIN
+        DELETE FROM public.attendance
+        WHERE id::text = p_attendance_id
+            AND employee_id::text = p_employee_id;
+        GET DIAGNOSTICS deleted_count = ROW_COUNT;
+        RETURN deleted_count > 0;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_attendance_record(text, text) TO public;

@@ -73,13 +73,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (todayRecord) {
                 document.getElementById('todayStatus').textContent = todayRecord.status;
-                attendanceBtn.disabled = true;
-                attendanceBtnLabel.textContent = 'Attendance Already Marked';
-                attendanceBtn.classList.replace('bg-emerald-500', 'bg-slate-400');
-                attendanceBtn.classList.replace('hover:bg-emerald-600', 'hover:bg-slate-500');
                 if (todayRecord.status === 'Present') {
                     document.getElementById('todayStatus').className = 'text-lg font-bold text-emerald-600';
                 }
+
+                attendanceBtn.disabled = true;
+                attendanceBtnLabel.textContent = 'Attendance Completed';
+                attendanceBtn.classList.replace('bg-emerald-500', 'bg-slate-400');
+                attendanceBtn.classList.replace('hover:bg-emerald-600', 'hover:bg-slate-500');
             } else {
                 document.getElementById('todayStatus').textContent = 'Not Marked Yet';
             }
@@ -159,24 +160,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.warn('Reverse geocoding failed; saving coordinates instead:', geocodeError);
                 }
 
-                // Determine Status: Present if before 9:30 AM, else Late
+                // Every check-in during working hours is Present.
                 const now = new Date();
                 const hours = now.getHours();
-                const minutes = now.getMinutes();
                 const timeIn = now.toTimeString().split(' ')[0]; // HH:MM:SS
                 const dateStr = now.toISOString().split('T')[0];
                 
+                if (hours < 6 || hours >= 22) { alert("Attendance can only be marked between 6:00 AM and 10:00 PM."); resetButton(); return; }
                 let status = "Present";
-                if (hours > 9 || (hours === 9 && minutes > 30)) {
-                    status = "Late";
-                }
 
                 // Save to Supabase
                 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                const { data, error } = await supabaseClient
-                    .from('attendance')
-                    .insert([
-                        {
+                let data, error;
+                if (todayAttendanceRecord) {
+                    const result = await supabaseClient
+                        .from('attendance')
+                        .update({
                             employee_id: currentUser.id,
                             date: dateStr,
                             time_in: timeIn,
@@ -184,8 +183,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                             latitude: lat,
                             longitude: lon,
                             location_address: address
-                        }
-                    ]);
+                        })
+                        .eq('id', todayAttendanceRecord.id)
+                        .select();
+                    data = result.data;
+                    error = result.error;
+                } else {
+                    const result = await supabaseClient
+                        .from('attendance')
+                        .insert({
+                            employee_id: currentUser.id,
+                            date: dateStr,
+                            time_in: timeIn,
+                            status: status,
+                            latitude: lat,
+                            longitude: lon,
+                            location_address: address
+                        })
+                        .select();
+                    data = result.data;
+                    error = result.error;
+                }
 
                 if (error) {
                     console.error('Attendance insert failed:', {

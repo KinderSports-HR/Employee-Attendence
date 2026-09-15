@@ -234,17 +234,66 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
     }
     const position = await Location.getCurrentPositionAsync({});
     const coordinates = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+    const currentHour = new Date().getHours();
+    if (currentHour < 6 || currentHour >= 22) {
+      Alert.alert('Outside working hours', 'Attendance can only be marked between 6:00 AM and 10:00 PM.');
+      setMarking(false);
+      return;
+    }
     const timeIn = new Date().toTimeString().slice(0, 8);
-    const status = new Date().getHours() > 9 || (new Date().getHours() === 9 && new Date().getMinutes() > 30) ? 'Late' : 'Present';
+    const status = 'Present';
     const address = await getAddress(coordinates.latitude, coordinates.longitude) || `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
-    const { error } = await supabase.from('attendance').insert({ employee_id: employee.id, date: today, time_in: timeIn, status, latitude: coordinates.latitude, longitude: coordinates.longitude, location_address: address });
+    const { data: existingRecords, error: lookupError } = await supabase
+      .from('attendance')
+      .select('id')
+      .eq('employee_id', employee.id)
+      .eq('date', today)
+      .limit(1);
+    if (lookupError) {
+      setMarking(false);
+      Alert.alert('Could not check attendance', lookupError.message);
+      return;
+    }
+    const attendanceValues = { employee_id: employee.id, date: today, time_in: timeIn, status, latitude: coordinates.latitude, longitude: coordinates.longitude, location_address: address };
+    const { data: savedRecord, error } = existingRecords?.[0]
+      ? await supabase.from('attendance').update(attendanceValues).eq('id', existingRecords[0].id).select().single()
+      : await supabase.from('attendance').insert(attendanceValues).select().single();
     setMarking(false);
     if (error) Alert.alert('Could not save attendance', error.message);
     else {
       setMapRegion(coordinates);
       setLocationLabel(address);
-      setHistory((current) => [{ id: `local-${Date.now()}`, date: today, time_in: timeIn, status, location_address: address, latitude: coordinates.latitude, longitude: coordinates.longitude }, ...current]);
+      setHistory((current) => [{ ...(savedRecord as Attendance), date: today, time_in: timeIn, status, location_address: address, latitude: coordinates.latitude, longitude: coordinates.longitude }, ...current.filter((record) => record.date !== today)]);
     }
+  }
+
+  function deleteAttendance(record: Attendance) {
+    Alert.alert('Delete attendance?', `Remove the attendance record for ${record.date}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { data: deleted, error } = await supabase.rpc('delete_attendance_record', {
+            p_attendance_id: String(record.id),
+            p_employee_id: String(employee.id),
+          });
+          if (error) {
+            Alert.alert('Could not delete attendance', error.message);
+            return;
+          }
+          if (!deleted) {
+            Alert.alert('Delete not completed', 'The attendance record was not found or could not be deleted.');
+            return;
+          }
+          setHistory((current) => current.filter((item) => item.id !== record.id));
+          if (record.date === today) {
+            setMapRegion(null);
+            setLocationLabel('No location captured yet');
+          }
+        },
+      },
+    ]);
   }
 
   return (
@@ -258,9 +307,9 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
         <View style={styles.profileRow}><View style={styles.avatar}><Text style={styles.avatarText}>{employee.full_name.slice(0, 1).toUpperCase()}</Text></View><View><Text style={styles.profileName}>{employee.full_name}</Text><Text style={styles.mutedText}>{employee.phone || 'No phone number'}</Text></View></View>
         <View style={[styles.statusCard, todayRecord?.status === 'Present' ? styles.presentStatusCard : todayRecord?.status === 'Late' ? styles.lateStatusCard : todayRecord?.status === 'Absent' ? styles.absentStatusCard : styles.pendingStatusCard]}><View><Text style={styles.cardEyebrow}>TODAY'S STATUS</Text><Text style={styles.statusValue}>{todayRecord?.status || 'Not marked yet'}</Text></View><View style={[styles.statusDot, todayRecord?.status === 'Present' ? styles.presentStatusDot : todayRecord?.status === 'Late' ? styles.lateStatusDot : todayRecord?.status === 'Absent' ? styles.absentStatusDot : styles.pendingStatusDot]} /></View>
         {mapRegion && <View style={styles.mapCard}><View style={styles.mapHeader}><Text style={styles.cardEyebrow}>CHECK-IN LOCATION</Text><Text style={styles.locationPin}>GPS</Text></View><MapPreview latitude={mapRegion.latitude} longitude={mapRegion.longitude} label="Attendance check-in" /></View>}
-        <Pressable style={[styles.attendanceButton, (todayRecord || marking) && styles.disabledButton]} onPress={markAttendance} disabled={!!todayRecord || marking}><Text style={styles.attendanceButtonText}>{marking ? 'Getting location...' : todayRecord ? 'Attendance marked' : 'Mark attendance'}</Text></Pressable>
+        <Pressable style={[styles.attendanceButton, ((todayRecord && todayRecord.status !== 'Absent') || marking) && styles.disabledButton]} onPress={markAttendance} disabled={!!(todayRecord && todayRecord.status !== 'Absent') || marking}><Text style={styles.attendanceButtonText}>{marking ? 'Getting location...' : todayRecord && todayRecord.status !== 'Absent' ? 'Attendance marked' : 'Mark attendance'}</Text></Pressable>
         <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>Attendance history</Text><Text style={styles.sectionMeta}>{history.length} records</Text></View>
-        <View style={styles.listCard}>{history.length === 0 ? <Text style={styles.emptyText}>No attendance records yet.</Text> : history.slice(0, 12).map((record) => <Pressable key={record.id} style={styles.historyRow} onPress={() => { if (record.latitude && record.longitude) { setMapRegion({ latitude: record.latitude, longitude: record.longitude }); setLocationLabel(record.location_address || 'Saved attendance location'); } }}><View style={styles.historyInfo}><Text style={styles.historyDate}>{record.date}</Text><Text style={styles.mutedText}>{record.time_in || '--:--'}</Text><Text style={styles.locationText}>{record.location_address || 'Location unavailable'}</Text></View><Text style={[styles.badge, record.status === 'Late' ? styles.lateBadge : styles.presentBadge]}>{record.status || 'Unknown'}</Text></Pressable>)}</View>
+        <View style={styles.listCard}>{history.length === 0 ? <Text style={styles.emptyText}>No attendance records yet.</Text> : history.slice(0, 12).map((record) => <View key={record.id} style={styles.historyRow}><Pressable style={styles.historyInfo} onPress={() => { if (record.latitude && record.longitude) { setMapRegion({ latitude: record.latitude, longitude: record.longitude }); setLocationLabel(record.location_address || 'Saved attendance location'); } }}><Text style={styles.historyDate}>{record.date}</Text><Text style={styles.mutedText}>{record.time_in || '--:--'}</Text><Text style={styles.locationText}>{record.location_address || 'Location unavailable'}</Text></Pressable><Text style={[styles.badge, record.status === 'Late' ? styles.lateBadge : styles.presentBadge]}>{record.status || 'Unknown'}</Text><Pressable style={styles.deleteButton} onPress={() => deleteAttendance(record)}><Text style={styles.deleteButtonText}>Delete</Text></Pressable></View>)}</View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -269,6 +318,8 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
 function AdminHome({ onLogout }: { onLogout: () => void }) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendance, setAttendance] = useState<AdminAttendance[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
@@ -301,13 +352,46 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
   }
 
   async function exportMonthly() {
+    const year = parseInt(month.split('-')[0], 10);
+    const monthNum = parseInt(month.split('-')[1], 10);
+    const daysInMonth = new Date(year, monthNum, 0).getDate();
+    
+    const dateHeaders = [];
+    const dateKeys = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      const day = String(i).padStart(2, '0');
+      dateHeaders.push(`\u200B${day}-${String(monthNum).padStart(2, '0')}-${year}`);
+      dateKeys.push(`${year}-${String(monthNum).padStart(2, '0')}-${day}`);
+    }
+
     const rows = employees.map((employee) => {
       const records = attendance.filter((record) => record.employee_id === employee.id && record.date.startsWith(month));
-      const present = records.filter((record) => record.status === 'Present').length;
-      const late = records.filter((record) => record.status === 'Late').length;
-      return [employee.full_name, employee.department || '', employee.designation || '', records.length, present, late, Math.max(records.length - present - late, 0)];
+      
+      let presentCount = 0;
+      let lateCount = 0;
+      let absentCount = 0;
+      let totalCount = 0;
+
+      const dateStatuses = dateKeys.map(isoDate => {
+        const dayRecords = records.filter(r => r.date === isoDate);
+        if (dayRecords.length > 0) {
+            const status = dayRecords[0].status || 'Present';
+            if (status === 'Present') presentCount++;
+            else if (status === 'Late') lateCount++;
+            else absentCount++;
+            totalCount++;
+            return status;
+        } else {
+            absentCount++;
+            return '-';
+        }
+      });
+
+      return [employee.full_name, employee.department || '-', employee.designation || '-', ...dateStatuses, totalCount, presentCount, lateCount, absentCount];
     });
-    await downloadCsv(`monthly-attendance-${month}.csv`, ['Employee Name', 'Department', 'Designation', 'Attendance Entries', 'Present', 'Late', 'Absent'], rows);
+
+    const headers = ['Employee Name', 'Department', 'Designation', ...dateHeaders, 'Total', 'Present', 'Late', 'Absent'];
+    await downloadCsv(`monthly-attendance-${month}.csv`, headers, rows);
   }
 
   async function saveEmployee(values: Omit<Employee, 'id'>) {
@@ -352,8 +436,35 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
           <View style={[styles.adminStatCard, styles.adminRedCard]}><Text style={styles.adminStatLabel}>ABSENT TODAY</Text><Text style={styles.adminStatValue}>{loading ? '--' : absentCount}</Text><Text style={styles.adminStatHint}>No check-in yet</Text></View>
         </View>
         <View style={styles.exportSection}><View><Text style={styles.sectionTitle}>Attendance reports</Text><Text style={styles.mutedText}>Download clean CSV reports for your records.</Text></View><View style={styles.exportButtons}><Pressable style={styles.exportButton} onPress={exportDaily}><Text style={styles.exportButtonText}>Daily CSV</Text></Pressable><Pressable style={[styles.exportButton, styles.monthlyButton]} onPress={exportMonthly}><Text style={styles.exportButtonText}>Monthly CSV</Text></Pressable></View></View>
-        <View style={styles.sectionHeading}><View><Text style={styles.sectionTitle}>Employee directory</Text><Text style={styles.sectionMeta}>{employees.length} total</Text></View><Pressable style={styles.addButton} onPress={() => { setEditingEmployee(null); setShowEmployeeForm(true); }}><Text style={styles.addButtonText}>+ Add employee</Text></Pressable></View>
-        <View style={styles.listCard}>{employees.map((item) => <Pressable key={item.id} style={styles.employeeRow} onPress={() => setSelectedEmployee(item)}><View style={styles.avatarSmall}><Text style={styles.avatarSmallText}>{item.full_name.slice(0, 1).toUpperCase()}</Text></View><View style={styles.employeeInfo}><Text style={styles.employeeName}>{item.full_name}</Text><Text style={styles.mutedText}>{item.department || 'Unassigned'}  |  {item.designation || 'Employee'}</Text></View><Text style={styles.rowChevron}>›</Text></Pressable>)}</View>
+        <View style={styles.sectionHeading}><View><Text style={styles.sectionTitle}>Employee directory</Text><Text style={styles.sectionMeta}>{employees.filter(item => (departmentFilter ? (item.department || '').trim().toLowerCase() === departmentFilter.toLowerCase() : true) && item.full_name.toLowerCase().includes(searchQuery.toLowerCase())).length} total</Text></View><Pressable style={styles.addButton} onPress={() => { setEditingEmployee(null); setShowEmployeeForm(true); }}><Text style={styles.addButtonText}>+ Add employee</Text></Pressable></View>
+        
+          <View style={styles.filterContainer}>
+            <TextInput style={styles.searchInput} placeholder="Search employee..." value={searchQuery} onChangeText={setSearchQuery} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.deptScroll} contentContainerStyle={{gap: 8}}>
+              <Pressable style={[styles.deptChip, departmentFilter === '' && styles.deptChipActive]} onPress={() => setDepartmentFilter('')}>
+                <Text style={[styles.deptChipText, departmentFilter === '' && styles.deptChipTextActive]}>All</Text>
+              </Pressable>
+              {Array.from(new Map(employees.map(e => [(e.department || '').trim().toLowerCase(), (e.department || '').trim()])).values()).filter(Boolean).sort().map(dept => (
+                <Pressable key={dept as string} style={[styles.deptChip, departmentFilter === dept && styles.deptChipActive]} onPress={() => setDepartmentFilter(dept as string)}>
+                  <Text style={[styles.deptChipText, departmentFilter === dept && styles.deptChipTextActive]}>{dept as string}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+          <View style={styles.listCard}>
+            {employees.filter(item => {
+              const matchesSearch = item.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+              const matchesDept = departmentFilter ? (item.department || '').trim().toLowerCase() === departmentFilter.toLowerCase() : true;
+              return matchesSearch && matchesDept;
+            }).map((item) => (
+              <Pressable key={item.id} style={styles.employeeRow} onPress={() => setSelectedEmployee(item)}>
+                <View style={styles.avatarSmall}><Text style={styles.avatarSmallText}>{item.full_name.slice(0, 1).toUpperCase()}</Text></View>
+                <View style={styles.employeeInfo}><Text style={styles.employeeName}>{item.full_name}</Text><Text style={styles.mutedText}>{item.designation || 'Employee'}</Text></View>
+                <Text style={styles.rowChevron}>›</Text>
+              </Pressable>
+            ))}
+          </View>
+
       </ScrollView>
       {selectedEmployee && <EmployeeDetails employee={selectedEmployee} status={attendance.find((record) => record.employee_id === selectedEmployee.id && record.date === today)?.status || 'Absent'} onClose={() => setSelectedEmployee(null)} onEdit={() => { setEditingEmployee(selectedEmployee); setSelectedEmployee(null); setShowEmployeeForm(true); }} />}
       {showEmployeeForm && <EmployeeForm employee={editingEmployee} initialStatus={editingEmployee ? attendance.find((record) => record.employee_id === editingEmployee.id && record.date === today)?.status || 'Absent' : 'Absent'} onClose={() => { setShowEmployeeForm(false); setEditingEmployee(null); }} onSave={async (values, status) => { await saveEmployee(values); if (editingEmployee) await saveEmployeeStatus(editingEmployee.id, status); }} />}
@@ -456,6 +567,8 @@ const styles = StyleSheet.create({
   badge: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 6, fontSize: 11, fontWeight: '800', overflow: 'hidden' },
   presentBadge: { color: '#087963', backgroundColor: '#DDF6EF' },
   lateBadge: { color: '#986313', backgroundColor: '#FFF0D0' },
+  deleteButton: { backgroundColor: '#FFF1F2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, marginLeft: 7 },
+  deleteButtonText: { color: '#C0394A', fontSize: 10, fontWeight: '800' },
   statGrid: { flexDirection: 'row', gap: 12, marginTop: 22 },
   statCard: { backgroundColor: colors.white, borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 16, flex: 1 },
   statValue: { color: colors.ink, fontSize: 29, fontWeight: '800', marginTop: 7 },
@@ -474,7 +587,16 @@ const styles = StyleSheet.create({
   exportButton: { backgroundColor: colors.blue, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, flex: 1, alignItems: 'center' },
   monthlyButton: { backgroundColor: colors.navy },
   exportButtonText: { color: colors.white, fontSize: 12, fontWeight: '800' },
-  employeeRow: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#EFF2F6', flexDirection: 'row', alignItems: 'center' },
+  
+    filterContainer: { marginTop: 12, marginBottom: 8 },
+    searchInput: { backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 16, height: 44, fontSize: 15, marginBottom: 10, color: colors.ink },
+    deptScroll: { paddingBottom: 4 },
+    deptChip: { backgroundColor: '#F0F4F8', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'transparent' },
+    deptChipActive: { backgroundColor: '#E0E7FF', borderColor: colors.blue },
+    deptChipText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+    deptChipTextActive: { color: colors.blue },
+    employeeRow: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#EFF2F6', flexDirection: 'row', alignItems: 'center' },
+
   avatarSmall: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#E5ECF7', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
   avatarSmallText: { color: '#53627A', fontWeight: '800' },
   employeeInfo: { flex: 1 },

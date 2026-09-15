@@ -87,9 +87,21 @@
             const downloadButton = document.getElementById('downloadMonthlyAttendance');
             const totalWorkingDays = 22;
             const exportRows = [];
+            
+            const reportMonth = new Date().toISOString().slice(0, 7);
+            const [yearStr, monthStr] = reportMonth.split('-');
+            const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+            const dateHeaders = [];
+            const dateKeys = [];
+            for (let i = 1; i <= daysInMonth; i++) {
+                const day = String(i).padStart(2, '0');
+                dateHeaders.push(`\u200B${day}-${monthStr}-${yearStr}`);
+                dateKeys.push(`${yearStr}-${monthStr}-${day}`);
+            }
 
             downloadButton.addEventListener('click', () => {
-                downloadCsv(`monthly-attendance-${new Date().toISOString().slice(0, 7)}.csv`, ['Employee Name', 'Department', 'Designation', 'Working Days', 'Present', 'Absent', 'Late', 'Attendance'], exportRows);
+                const headers = ['Employee Name', 'Department', 'Designation', ...dateHeaders, 'Total', 'Present', 'Late', 'Absent'];
+                downloadCsv(`monthly-attendance-${reportMonth}.csv`, headers, exportRows);
             });
 
             try {
@@ -115,13 +127,33 @@
                     const late = employeeAttendance.filter(item => item.status === 'Late').length;
                     const totalPresent = present + late;
                     const absent = Math.max(totalWorkingDays - totalPresent, 0);
-                    const percentage = ((totalPresent / totalWorkingDays) * 100).toFixed(1);
-                    exportRows.push([employee.full_name || 'Unnamed Employee', employee.department || '', employee.designation || '', totalWorkingDays, totalPresent, absent, late, `${percentage}%`]);
+                    let presentCount = 0;
+                    let lateCount = 0;
+                    let absentCount = 0;
+                    let totalCount = 0;
+                    const dateStatuses = dateKeys.map(isoDate => {
+                        const dayRecords = employeeAttendance.filter(r => r.date === isoDate);
+                        if (dayRecords.length > 0) {
+                            const st = dayRecords[0].status || 'Present';
+                            if (st === 'Present') presentCount++;
+                            else if (st === 'Late') lateCount++;
+                            else absentCount++;
+                            totalCount++;
+                            return st;
+                        } else {
+                            absentCount++;
+                            return '-';
+                        }
+                    });
+                    
+                    const percentage = totalWorkingDays > 0 ? ((totalCount / totalWorkingDays) * 100).toFixed(1) : '0.0';
+                    exportRows.push([employee.full_name || 'Unnamed Employee', employee.department || '-', employee.designation || '-', ...dateStatuses, totalCount, presentCount, lateCount, absentCount]);
+                    
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-slate-50';
-                    row.innerHTML = `<td class="px-6 py-4 font-medium">${employee.full_name || 'Unnamed Employee'}</td><td class="px-6 py-4 text-slate-500">${employee.department || '-'}</td><td class="px-6 py-4 text-slate-500">${employee.designation || '-'}</td><td class="px-6 py-4 text-center">${totalWorkingDays}</td><td class="px-6 py-4 text-center text-emerald-600 font-semibold">${totalPresent}</td><td class="px-6 py-4 text-center text-red-500 font-semibold">${absent}</td><td class="px-6 py-4 text-center text-amber-500 font-semibold">${late}</td><td class="px-6 py-4 text-right font-semibold">${percentage}%</td>`;
+                    row.innerHTML = `<td class="px-6 py-4 font-medium">${employee.full_name || 'Unnamed Employee'}</td><td class="px-6 py-4 text-slate-500">${employee.department || '-'}</td><td class="px-6 py-4 text-slate-500">${employee.designation || '-'}</td><td class="px-6 py-4 text-center">${totalWorkingDays}</td><td class="px-6 py-4 text-center text-emerald-600 font-semibold">${presentCount}</td><td class="px-6 py-4 text-center text-red-500 font-semibold">${absentCount}</td><td class="px-6 py-4 text-center text-amber-500 font-semibold">${lateCount}</td><td class="px-6 py-4 text-right font-semibold">${percentage}%</td>`;
                     table.appendChild(row);
-                });
+                );
                 downloadButton.disabled = exportRows.length === 0;
             } catch (error) {
                 console.error('Monthly report error:', error);
