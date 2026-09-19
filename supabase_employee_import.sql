@@ -51,3 +51,27 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.delete_attendance_record(text, text) TO public;
+
+-- The mobile app uses phone-based login, so attendance writes must be allowed
+-- for the publishable client key after the employee is selected in the app.
+DROP POLICY IF EXISTS attendance_select_policy ON public.attendance;
+CREATE POLICY attendance_select_policy
+ON public.attendance
+FOR SELECT
+TO public
+USING (true);
+
+DROP POLICY IF EXISTS attendance_insert_policy ON public.attendance;
+CREATE POLICY attendance_insert_policy
+ON public.attendance
+FOR INSERT
+TO public
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS attendance_update_policy ON public.attendance;
+CREATE POLICY attendance_update_policy
+ON public.attendance
+FOR UPDATE
+TO public
+USING (true)
+WITH CHECK (true);

@@ -51,6 +51,7 @@ const colors = {
   navy: '#101B33',
   blue: '#2F6FED',
   teal: '#159A82',
+  red: '#DC2626',
   ink: '#17233C',
   muted: '#6B7891',
   canvas: '#F5F7FB',
@@ -94,6 +95,21 @@ async function getAddress(latitude: number, longitude: number) {
     // Coordinates remain available when address lookup is unavailable.
   }
   return null;
+}
+
+async function getCurrentCoordinates() {
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.geolocation) {
+    return new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+        reject,
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+      );
+    });
+  }
+
+  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  return { latitude: position.coords.latitude, longitude: position.coords.longitude };
 }
 
 export default function App() {
@@ -226,63 +242,75 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
 
   async function markAttendance() {
     setMarking(true);
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Location needed', 'Allow location access to mark attendance.');
-      setMarking(false);
-      return;
-    }
-    const position = await Location.getCurrentPositionAsync({});
-    const coordinates = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-    const currentHour = new Date().getHours();
-    if (currentHour < 6 || currentHour >= 22) {
-      Alert.alert('Outside working hours', 'Attendance can only be marked between 6:00 AM and 10:00 PM.');
-      setMarking(false);
-      return;
-    }
-    const timeIn = new Date().toTimeString().slice(0, 8);
-    const status = 'Present';
-    const address = await getAddress(coordinates.latitude, coordinates.longitude) || `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
-    const { data: existingRecords, error: lookupError } = await supabase
-      .from('attendance')
-      .select('id')
-      .eq('employee_id', employee.id)
-      .eq('date', today)
-      .limit(1);
-    if (lookupError) {
-      setMarking(false);
-      Alert.alert('Could not check attendance', lookupError.message);
-      return;
-    }
-    const attendanceValues = { employee_id: employee.id, date: today, time_in: timeIn, status, latitude: coordinates.latitude, longitude: coordinates.longitude, location_address: address };
-    const { data: savedRecord, error } = existingRecords?.[0]
-      ? await supabase.from('attendance').update(attendanceValues).eq('id', existingRecords[0].id).select().single()
-      : await supabase.from('attendance').insert(attendanceValues).select().single();
-    setMarking(false);
-    if (error) Alert.alert('Could not save attendance', error.message);
-    else {
+    try {
+      if (Platform.OS !== 'web') {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Location needed', 'Allow location access to mark attendance.');
+          return;
+        }
+      }
+      const coordinates = await getCurrentCoordinates();
+      const currentHour = new Date().getHours();
+      if (currentHour < 6 || currentHour >= 22) {
+        Alert.alert('Outside working hours', 'Attendance can only be marked between 6:00 AM and 10:00 PM.');
+        return;
+      }
+      const timeIn = new Date().toTimeString().slice(0, 8);
+      const status = 'Present';
+      const address = await getAddress(coordinates.latitude, coordinates.longitude) || `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
+      const { data: existingRecords, error: lookupError } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('employee_id', employee.id)
+        .eq('date', today)
+        .limit(1);
+      if (lookupError) {
+        Alert.alert('Could not check attendance', lookupError.message);
+        return;
+      }
+      const attendanceValues = { employee_id: employee.id, date: today, time_in: timeIn, status, latitude: coordinates.latitude, longitude: coordinates.longitude, location_address: address };
+      const { data: savedRecord, error } = existingRecords?.[0]
+        ? await supabase.from('attendance').update(attendanceValues).eq('id', existingRecords[0].id).select().single()
+        : await supabase.from('attendance').insert(attendanceValues).select().single();
+      if (error) {
+        Alert.alert('Could not save attendance', error.message);
+        return;
+      }
       setMapRegion(coordinates);
       setLocationLabel(address);
       setHistory((current) => [{ ...(savedRecord as Attendance), date: today, time_in: timeIn, status, location_address: address, latitude: coordinates.latitude, longitude: coordinates.longitude }, ...current.filter((record) => record.date !== today)]);
+    } catch (error) {
+      const message = typeof error === 'object' && error !== null && 'code' in error
+        ? 'Please allow location access and try again.'
+        : error instanceof Error ? error.message : 'Please try again.';
+      Alert.alert('Could not mark attendance', message);
+    } finally {
+      setMarking(false);
     }
   }
 
   function deleteAttendance(record: Attendance) {
-    Alert.alert('Delete attendance?', `Remove the attendance record for ${record.date}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          const { data: deleted, error } = await supabase.rpc('delete_attendance_record', {
-            p_attendance_id: String(record.id),
-            p_employee_id: String(employee.id),
-          });
-          if (error) {
-            Alert.alert('Could not delete attendance', error.message);
-            return;
+    const removeAttendance = async () => {
+          const { data: deletedRows, error: deleteError } = await supabase
+            .from('attendance')
+            .delete()
+            .eq('id', record.id)
+            .eq('employee_id', employee.id)
+            .select('id');
+
+          if (deleteError) {
+            const { data: rpcDeleted, error: rpcError } = await supabase.rpc('delete_attendance_record', {
+              p_attendance_id: String(record.id),
+              p_employee_id: String(employee.id),
+            });
+            if (rpcError || !rpcDeleted) {
+              Alert.alert('Could not delete attendance', rpcError?.message || deleteError.message);
+              return;
+            }
           }
-          if (!deleted) {
+
+          if (!deleteError && !deletedRows?.some((deletedRow) => deletedRow.id === record.id)) {
             Alert.alert('Delete not completed', 'The attendance record was not found or could not be deleted.');
             return;
           }
@@ -291,8 +319,16 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
             setMapRegion(null);
             setLocationLabel('No location captured yet');
           }
-        },
-      },
+    };
+
+    const message = `Remove the attendance record for ${record.date}?`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) void removeAttendance();
+      return;
+    }
+    Alert.alert('Delete attendance?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void removeAttendance() },
     ]);
   }
 
@@ -410,6 +446,36 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
     setEditingEmployee(null);
   }
 
+  async function deleteEmployee(id: string) {
+    const doDelete = async () => {
+      // Delete their attendance records to satisfy foreign key constraints
+      await supabase.from('attendance').delete().eq('employee_id', id);
+      
+      const { error } = await supabase.from('employees').delete().eq('id', id);
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        setEmployees(current => current.filter(e => e.id !== id));
+        setSelectedEmployee(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this employee? This cannot be undone.')) {
+        doDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Employee',
+        'Are you sure you want to delete this employee? This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: doDelete }
+        ]
+      );
+    }
+  }
+
   async function saveEmployeeStatus(employeeId: string, status: string) {
     const existing = attendance.find((record) => record.employee_id === employeeId && record.date === today);
     const result = existing
@@ -432,7 +498,6 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
         <View style={styles.adminStatGrid}>
           <View style={[styles.adminStatCard, styles.adminBlueCard]}><Text style={styles.adminStatLabel}>TOTAL EMPLOYEES</Text><Text style={styles.adminStatValue}>{loading ? '--' : employees.length}</Text><Text style={styles.adminStatHint}>Registered profiles</Text></View>
           <View style={[styles.adminStatCard, styles.adminGreenCard]}><Text style={styles.adminStatLabel}>PRESENT TODAY</Text><Text style={styles.adminStatValue}>{loading ? '--' : presentCount}</Text><Text style={styles.adminStatHint}>On time check-ins</Text></View>
-          <View style={[styles.adminStatCard, styles.adminYellowCard]}><Text style={styles.adminStatLabel}>LATE TODAY</Text><Text style={styles.adminStatValue}>{loading ? '--' : lateCount}</Text><Text style={styles.adminStatHint}>Late check-ins</Text></View>
           <View style={[styles.adminStatCard, styles.adminRedCard]}><Text style={styles.adminStatLabel}>ABSENT TODAY</Text><Text style={styles.adminStatValue}>{loading ? '--' : absentCount}</Text><Text style={styles.adminStatHint}>No check-in yet</Text></View>
         </View>
         <View style={styles.exportSection}><View><Text style={styles.sectionTitle}>Attendance reports</Text><Text style={styles.mutedText}>Download clean CSV reports for your records.</Text></View><View style={styles.exportButtons}><Pressable style={styles.exportButton} onPress={exportDaily}><Text style={styles.exportButtonText}>Daily CSV</Text></Pressable><Pressable style={[styles.exportButton, styles.monthlyButton]} onPress={exportMonthly}><Text style={styles.exportButtonText}>Monthly CSV</Text></Pressable></View></View>
@@ -466,14 +531,14 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
           </View>
 
       </ScrollView>
-      {selectedEmployee && <EmployeeDetails employee={selectedEmployee} status={attendance.find((record) => record.employee_id === selectedEmployee.id && record.date === today)?.status || 'Absent'} onClose={() => setSelectedEmployee(null)} onEdit={() => { setEditingEmployee(selectedEmployee); setSelectedEmployee(null); setShowEmployeeForm(true); }} />}
+      {selectedEmployee && <EmployeeDetails employee={selectedEmployee} status={attendance.find((record) => record.employee_id === selectedEmployee.id && record.date === today)?.status || 'Absent'} onClose={() => setSelectedEmployee(null)} onEdit={() => { setEditingEmployee(selectedEmployee); setSelectedEmployee(null); setShowEmployeeForm(true); }} onDelete={() => deleteEmployee(selectedEmployee.id)} />}
       {showEmployeeForm && <EmployeeForm employee={editingEmployee} initialStatus={editingEmployee ? attendance.find((record) => record.employee_id === editingEmployee.id && record.date === today)?.status || 'Absent' : 'Absent'} onClose={() => { setShowEmployeeForm(false); setEditingEmployee(null); }} onSave={async (values, status) => { await saveEmployee(values); if (editingEmployee) await saveEmployeeStatus(editingEmployee.id, status); }} />}
     </SafeAreaView>
   );
 }
 
-function EmployeeDetails({ employee, status, onClose, onEdit }: { employee: Employee; status: string; onClose: () => void; onEdit: () => void }) {
-  return <View style={styles.overlay}><View style={styles.modal}><View style={styles.modalHeader}><Text style={styles.modalTitle}>Employee details</Text><Pressable onPress={onClose}><Text style={styles.closeText}>×</Text></Pressable></View><View style={styles.detailHero}><View style={styles.detailAvatar}><Text style={styles.detailAvatarText}>{employee.full_name.slice(0, 1).toUpperCase()}</Text></View><Text style={styles.detailName}>{employee.full_name}</Text><Text style={styles.mutedText}>{employee.designation || 'Employee'}</Text></View><View style={styles.detailList}><DetailLine label="Phone number" value={employee.phone || 'Not provided'} /><DetailLine label="Department" value={employee.department || 'Not assigned'} /><DetailLine label="Role" value={employee.role || 'Employee'} /><DetailLine label="Today's status" value={status} /></View><View style={styles.modalActions}><Pressable style={styles.secondaryButton} onPress={onClose}><Text style={styles.secondaryButtonText}>Close</Text></Pressable><Pressable style={styles.primarySmallButton} onPress={onEdit}><Text style={styles.primaryButtonText}>Edit employee</Text></Pressable></View></View></View>;
+function EmployeeDetails({ employee, status, onClose, onEdit, onDelete }: { employee: Employee; status: string; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+  return <View style={styles.overlay}><View style={styles.modal}><View style={styles.modalHeader}><Text style={styles.modalTitle}>Employee details</Text><Pressable onPress={onClose}><Text style={styles.closeText}>✕</Text></Pressable></View><View style={styles.detailHero}><View style={styles.detailAvatar}><Text style={styles.detailAvatarText}>{employee.full_name.slice(0, 1).toUpperCase()}</Text></View><Text style={styles.detailName}>{employee.full_name}</Text><Text style={styles.mutedText}>{employee.designation || 'Employee'}</Text></View><View style={styles.detailList}><DetailLine label="Phone number" value={employee.phone || 'Not provided'} /><DetailLine label="Department" value={employee.department || 'Not assigned'} /><DetailLine label="Role" value={employee.role || 'Employee'} /><DetailLine label="Today's status" value={status} /></View><View style={styles.modalActions}><Pressable style={styles.dangerButton} onPress={onDelete}><Text style={styles.dangerButtonText}>Delete</Text></Pressable><Pressable style={styles.secondaryButton} onPress={onClose}><Text style={styles.secondaryButtonText}>Close</Text></Pressable><Pressable style={styles.primarySmallButton} onPress={onEdit}><Text style={styles.primaryButtonText}>Edit</Text></Pressable></View></View></View>;
 }
 
 function DetailLine({ label, value }: { label: string; value: string }) {
@@ -618,6 +683,8 @@ const styles = StyleSheet.create({
   detailLabel: { color: colors.muted, fontSize: 11, fontWeight: '700' },
   detailValue: { color: colors.ink, fontSize: 14, fontWeight: '700', marginTop: 3 },
   modalActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 18 },
+  dangerButton: { backgroundColor: '#FEF2F2', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 11 },
+  dangerButtonText: { color: colors.red, fontSize: 12, fontWeight: '800' },
   secondaryButton: { backgroundColor: '#EEF2F7', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 11 },
   secondaryButtonText: { color: colors.ink, fontSize: 12, fontWeight: '800' },
   primarySmallButton: { backgroundColor: colors.blue, borderRadius: 10, paddingHorizontal: 15, paddingVertical: 11, minWidth: 110, alignItems: 'center' },

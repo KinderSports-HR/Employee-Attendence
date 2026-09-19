@@ -23,7 +23,13 @@
     },
     "plugins": [
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Attendance to use your location to mark attendance."
+        }
+      ]
     ]
   }
 }
