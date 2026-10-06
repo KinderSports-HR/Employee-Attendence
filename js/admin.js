@@ -65,17 +65,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (liveTable) liveTable.innerHTML = '<tr><td colspan="6" class="text-center py-4">Loading Data...</td></tr>';
     if (monthlyTable) monthlyTable.innerHTML = '<tr><td colspan="6" class="text-center py-4">Loading Data...</td></tr>';
 
+    function getLocalDateString(d = new Date()) {
+        try {
+            return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+        } catch {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    }
+
+    async function fetchAllAttendance() {
+        let allRecords = [];
+        let from = 0;
+        const step = 1000;
+        while (true) {
+            const { data, error } = await supabaseClient
+                .from('attendance')
+                .select('*')
+                .order('date', { ascending: false })
+                .range(from, from + step - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            allRecords.push(...data);
+            if (data.length < step) break;
+            from += step;
+        }
+        return allRecords;
+    }
+
     // 3. Fetch Data
     try {
-        const { data: employees, error: empErr } = await supabaseClient.from('employees').select('*');
+        const [{ data: employees, error: empErr }, attendance] = await Promise.all([
+            supabaseClient.from('employees').select('*'),
+            fetchAllAttendance()
+        ]);
         if (empErr) throw empErr;
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        // Fetch ALL attendance to compute statistics
-        const { data: attendance, error: attErr } = await supabaseClient.from('attendance').select('*');
-        if (attErr) throw attErr;
-
+        const todayStr = getLocalDateString();
         const todayAttendance = attendance.filter(a => a.date === todayStr);
 
         function renderDashboard() {

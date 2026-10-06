@@ -62,12 +62,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const historyBody = document.getElementById('historyBody');
         historyBody.innerHTML = ''; // clear "Loading..." text
         
+        function getLocalDateString(d = new Date()) {
+            try {
+                return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+            } catch {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+        }
+
         if (!attendanceData || attendanceData.length === 0) {
             historyBody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-slate-500">No attendance records found yet.</td></tr>';
             document.getElementById('todayStatus').textContent = 'Not Marked Yet';
         } else {
             // Check if today is marked
-            const today = new Date().toISOString().split('T')[0];
+            const today = getLocalDateString();
             const todayRecord = attendanceData.find(r => r.date === today);
             todayAttendanceRecord = todayRecord || null;
             
@@ -164,9 +175,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const now = new Date();
                 const hours = now.getHours();
                 const timeIn = now.toTimeString().split(' ')[0]; // HH:MM:SS
-                const dateStr = now.toISOString().split('T')[0];
+                const dateStr = getLocalDateString(now);
                 
-                if (hours < 6 || hours >= 22) { alert("Attendance can only be marked between 6:00 AM and 10:00 PM."); resetButton(); return; }
+                if (hours < 5 || hours >= 22) { alert("Attendance can only be marked between 5:00 AM and 10:00 PM."); resetButton(); return; }
                 let status = "Present";
 
                 // Save to Supabase

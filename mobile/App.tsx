@@ -112,6 +112,17 @@ async function getCurrentCoordinates() {
   return { latitude: position.coords.latitude, longitude: position.coords.longitude };
 }
 
+function getLocalDateString(d = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  } catch {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+}
+
 export default function App() {
   const [fontsLoaded] = useDMSansFonts({
     DMSans_400Regular,
@@ -217,7 +228,7 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
   const [mapRegion, setMapRegion] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState('No location captured yet');
   const [marking, setMarking] = useState(false);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   const todayRecord = history.find((record) => record.date === today);
 
   useEffect(() => {
@@ -252,8 +263,8 @@ function EmployeeHome({ employee, onLogout }: { employee: Employee; onLogout: ()
       }
       const coordinates = await getCurrentCoordinates();
       const currentHour = new Date().getHours();
-      if (currentHour < 6 || currentHour >= 22) {
-        Alert.alert('Outside working hours', 'Attendance can only be marked between 6:00 AM and 10:00 PM.');
+      if (currentHour < 5 || currentHour >= 22) {
+        Alert.alert('Outside working hours', 'Attendance can only be marked between 5:00 AM and 10:00 PM.');
         return;
       }
       const timeIn = new Date().toTimeString().slice(0, 8);
@@ -360,74 +371,99 @@ function AdminHome({ onLogout }: { onLogout: () => void }) {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   const month = today.slice(0, 7);
   const todayAttendance = attendance.filter((record) => record.date === today);
   const presentCount = todayAttendance.filter((record) => record.status === 'Present').length;
   const lateCount = todayAttendance.filter((record) => record.status === 'Late').length;
   const absentCount = Math.max(employees.length - presentCount - lateCount, 0);
 
+  async function fetchLatestAttendance() {
+    let allRecords: AdminAttendance[] = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+      const { data, error } = await supabase.from('attendance').select('*').order('date', { ascending: false }).range(from, from + step - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allRecords.push(...(data as AdminAttendance[]));
+      if (data.length < step) break;
+      from += step;
+    }
+    setAttendance(allRecords);
+    return allRecords;
+  }
+
   useEffect(() => {
     Promise.all([
       supabase.from('employees').select('*').order('full_name'),
-      supabase.from('attendance').select('*').order('date', { ascending: false }),
-    ]).then(([employeeResult, attendanceResult]) => {
+      fetchLatestAttendance(),
+    ]).then(([employeeResult]) => {
       setEmployees((employeeResult.data || []) as Employee[]);
-      setAttendance((attendanceResult.data || []) as AdminAttendance[]);
       setLoading(false);
     });
   }, []);
 
   async function exportDaily() {
-    const employeeMap = new Map(employees.map((employee) => [employee.id, employee]));
-    const rows = todayAttendance.map((record) => {
-      const employee = employeeMap.get(record.employee_id);
-      return [employee?.full_name || 'Unknown Employee', employee?.department || '', employee?.designation || '', record.date, record.time_in || '', record.status || '', record.location_address || ''];
-    });
-    await downloadCsv(`daily-attendance-${today}.csv`, ['Employee Name', 'Department', 'Designation', 'Date', 'Time In', 'Status', 'Location'], rows);
+    try {
+      const latestAttendance = await fetchLatestAttendance();
+      const employeeMap = new Map(employees.map((employee) => [employee.id, employee]));
+      const rows = latestAttendance.filter((record) => record.date === today).map((record) => {
+        const employee = employeeMap.get(record.employee_id);
+        return [employee?.full_name || 'Unknown Employee', employee?.department || '', employee?.designation || '', record.date, record.time_in || '', record.status || '', record.location_address || ''];
+      });
+      await downloadCsv(`daily-attendance-${today}.csv`, ['Employee Name', 'Department', 'Designation', 'Date', 'Time In', 'Status', 'Location'], rows);
+    } catch (error) {
+      Alert.alert('Could not export report', error instanceof Error ? error.message : 'Please try again.');
+    }
   }
 
   async function exportMonthly() {
-    const year = parseInt(month.split('-')[0], 10);
-    const monthNum = parseInt(month.split('-')[1], 10);
-    const daysInMonth = new Date(year, monthNum, 0).getDate();
-    
-    const dateHeaders = [];
-    const dateKeys = [];
-    for (let i = 1; i <= daysInMonth; i++) {
-      const day = String(i).padStart(2, '0');
-      dateHeaders.push(`\u200B${day}-${String(monthNum).padStart(2, '0')}-${year}`);
-      dateKeys.push(`${year}-${String(monthNum).padStart(2, '0')}-${day}`);
-    }
+    try {
+      const latestAttendance = await fetchLatestAttendance();
+      const year = parseInt(month.split('-')[0], 10);
+      const monthNum = parseInt(month.split('-')[1], 10);
+      const daysInMonth = new Date(year, monthNum, 0).getDate();
 
-    const rows = employees.map((employee) => {
-      const records = attendance.filter((record) => record.employee_id === employee.id && record.date.startsWith(month));
-      
-      let presentCount = 0;
-      let lateCount = 0;
-      let absentCount = 0;
-      let totalCount = 0;
+      const dateHeaders = [];
+      const dateKeys = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        const day = String(i).padStart(2, '0');
+        dateHeaders.push(`\u200B${day}-${String(monthNum).padStart(2, '0')}-${year}`);
+        dateKeys.push(`${year}-${String(monthNum).padStart(2, '0')}-${day}`);
+      }
 
-      const dateStatuses = dateKeys.map(isoDate => {
-        const dayRecords = records.filter(r => r.date === isoDate);
-        if (dayRecords.length > 0) {
+      const rows = employees.map((employee) => {
+        const records = latestAttendance.filter((record) => record.employee_id === employee.id && record.date.startsWith(month));
+
+        let presentCount = 0;
+        let lateCount = 0;
+        let absentCount = 0;
+        let totalCount = 0;
+
+        const dateStatuses = dateKeys.map(isoDate => {
+          const dayRecords = records.filter(r => r.date === isoDate);
+          if (dayRecords.length > 0) {
             const status = dayRecords[0].status || 'Present';
             if (status === 'Present') presentCount++;
             else if (status === 'Late') lateCount++;
             else absentCount++;
             totalCount++;
             return status;
-        } else {
+          } else {
             absentCount++;
             return '-';
-        }
+          }
+        });
+
+        return [employee.full_name, employee.department || '-', employee.designation || '-', ...dateStatuses, totalCount, presentCount, lateCount, absentCount];
       });
 
-      return [employee.full_name, employee.department || '-', employee.designation || '-', ...dateStatuses, totalCount, presentCount, lateCount, absentCount];
-    });
-
-    const headers = ['Employee Name', 'Department', 'Designation', ...dateHeaders, 'Total', 'Present', 'Late', 'Absent'];
-    await downloadCsv(`monthly-attendance-${month}.csv`, headers, rows);
+      const headers = ['Employee Name', 'Department', 'Designation', ...dateHeaders, 'Total', 'Present', 'Late', 'Absent'];
+      await downloadCsv(`monthly-attendance-${month}.csv`, headers, rows);
+    } catch (error) {
+      Alert.alert('Could not export report', error instanceof Error ? error.message : 'Please try again.');
+    }
   }
 
   async function saveEmployee(values: Omit<Employee, 'id'>) {

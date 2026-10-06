@@ -88,7 +88,18 @@
             const totalWorkingDays = 22;
             const exportRows = [];
             
-            const reportMonth = new Date().toISOString().slice(0, 7);
+            function getLocalDateString(d = new Date()) {
+                try {
+                    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+                } catch {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+            }
+
+            const reportMonth = getLocalDateString().slice(0, 7);
             const [yearStr, monthStr] = reportMonth.split('-');
             const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
             const dateHeaders = [];
@@ -104,13 +115,33 @@
                 downloadCsv(`monthly-attendance-${reportMonth}.csv`, headers, exportRows);
             });
 
+            async function fetchMonthAttendance(monthKey) {
+                let allRecords = [];
+                let from = 0;
+                const step = 1000;
+                while (true) {
+                    const { data, error } = await supabaseClient
+                        .from('attendance')
+                        .select('*')
+                        .gte('date', `${monthKey}-01`)
+                        .lte('date', `${monthKey}-31`)
+                        .order('date', { ascending: false })
+                        .range(from, from + step - 1);
+                    if (error) throw error;
+                    if (!data || data.length === 0) break;
+                    allRecords.push(...data);
+                    if (data.length < step) break;
+                    from += step;
+                }
+                return allRecords;
+            }
+
             try {
-                const [{ data: employees, error: employeeError }, { data: attendance, error: attendanceError }] = await Promise.all([
-                    supabaseClient.from('employees').select('*'),
-                    supabaseClient.from('attendance').select('*')
+                const [{ data: employees, error: employeeError }, attendance] = await Promise.all([
+                    supabaseClient.from('employees').select('*').order('full_name'),
+                    fetchMonthAttendance(reportMonth)
                 ]);
                 if (employeeError) throw employeeError;
-                if (attendanceError) throw attendanceError;
 
                 employeeCount.textContent = employees.length;
                 attendanceCount.textContent = attendance.length;

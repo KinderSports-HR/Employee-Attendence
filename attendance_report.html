@@ -84,17 +84,46 @@
             const downloadButton = document.getElementById('downloadAttendance');
             let exportRows = [];
 
+            function getLocalDateString(d = new Date()) {
+                try {
+                    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+                } catch {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+            }
+
             downloadButton.addEventListener('click', () => {
-                downloadCsv(`attendance-records-${new Date().toISOString().slice(0, 10)}.csv`, ['Employee Name', 'Department', 'Designation', 'Date', 'Time In', 'Status', 'Location'], exportRows);
+                downloadCsv(`attendance-records-${getLocalDateString()}.csv`, ['Employee Name', 'Department', 'Designation', 'Date', 'Time In', 'Status', 'Location'], exportRows);
             });
 
+            async function fetchAllAttendance() {
+                let allRecords = [];
+                let from = 0;
+                const step = 1000;
+                while (true) {
+                    const { data, error } = await supabaseClient
+                        .from('attendance')
+                        .select('*')
+                        .order('date', { ascending: false })
+                        .range(from, from + step - 1);
+                    if (error) throw error;
+                    if (!data || data.length === 0) break;
+                    allRecords.push(...data);
+                    if (data.length < step) break;
+                    from += step;
+                }
+                return allRecords;
+            }
+
             try {
-                const [{ data: employees, error: employeeError }, { data: attendance, error: attendanceError }] = await Promise.all([
-                    supabaseClient.from('employees').select('*'),
-                    supabaseClient.from('attendance').select('*')
+                const [{ data: employees, error: employeeError }, attendance] = await Promise.all([
+                    supabaseClient.from('employees').select('*').order('full_name'),
+                    fetchAllAttendance()
                 ]);
                 if (employeeError) throw employeeError;
-                if (attendanceError) throw attendanceError;
 
                 const employeeMap = new Map(employees.map(employee => [employee.id, employee]));
                 const records = [...attendance].sort((first, second) => `${second.date || ''}${second.time_in || ''}`.localeCompare(`${first.date || ''}${first.time_in || ''}`));
